@@ -4,9 +4,11 @@
 """
 
 import pytz
+from pytz import country_timezones
 import swisseph as swe
 import logging
 import warnings
+import json  
 
 from datetime import datetime
 from functools import cached_property
@@ -226,12 +228,12 @@ class AstrologicalSubject:
         # General setup #
         #---------------#
 
-        # Geonames username
-        if geonames_username is None and online:
-            logging.warning(GEONAMES_DEFAULT_USERNAME_WARNING)
-            self.geonames_username = DEFAULT_GEONAMES_USERNAME
-        else:
-            self.geonames_username = geonames_username # type: ignore
+        # # Geonames username
+        # if geonames_username is None and online:
+        #     logging.warning(GEONAMES_DEFAULT_USERNAME_WARNING)
+        #     self.geonames_username = DEFAULT_GEONAMES_USERNAME
+        # else:
+        #     self.geonames_username = geonames_username # type: ignore
 
         # City
         if not city:
@@ -373,29 +375,69 @@ class AstrologicalSubject:
     def get(self, item, default=None):
         return getattr(self, item, default)
 
+    # def _fetch_and_set_tz_and_coordinates_from_geonames(self) -> None:
+    #     """Gets the nearest time zone for the calculation"""
+    #     logging.info("Fetching timezone/coordinates from geonames")
+
+    #     geonames = FetchGeonames(
+    #         self.city,
+    #         self.nation,
+    #         username=self.geonames_username,
+    #     )
+    #     self.city_data: dict[str, str] = geonames.get_serialized_data()
+
+    #     if (
+    #         not "countryCode" in self.city_data
+    #         or not "timezonestr" in self.city_data
+    #         or not "lat" in self.city_data
+    #         or not "lng" in self.city_data
+    #     ):
+    #         raise KerykeionException("No data found for this city, try again! Maybe check your connection?")
+
+    #     self.nation = self.city_data["countryCode"]
+    #     self.lng = float(self.city_data["lng"])
+    #     self.lat = float(self.city_data["lat"])
+    #     self.tz_str = self.city_data["timezonestr"]
+
     def _fetch_and_set_tz_and_coordinates_from_geonames(self) -> None:
-        """Gets the nearest time zone for the calculation"""
-        logging.info("Fetching timezone/coordinates from geonames")
+        """
+        Fetches timezone and coordinates from a local JSON file and sets the appropriate timezone.
+        """
+        logging.info("Fetching timezone/coordinates from local data")
 
-        geonames = FetchGeonames(
-            self.city,
-            self.nation,
-            username=self.geonames_username,
-        )
-        self.city_data: dict[str, str] = geonames.get_serialized_data()
+        try:
+            # Load city data from the JSON file
+            with open("cities_data.json", "r", encoding="utf-8") as f:
+                cities_data = json.load(f)
 
-        if (
-            not "countryCode" in self.city_data
-            or not "timezonestr" in self.city_data
-            or not "lat" in self.city_data
-            or not "lng" in self.city_data
-        ):
-            raise KerykeionException("No data found for this city, try again! Maybe check your connection?")
+            # Check if the city exists in the JSON data
+            if self.city not in cities_data:
+                raise ValueError(f"No data found for city '{self.city}'. Check the local data file.")
 
-        self.nation = self.city_data["countryCode"]
-        self.lng = float(self.city_data["lng"])
-        self.lat = float(self.city_data["lat"])
-        self.tz_str = self.city_data["timezonestr"]
+            # Get city-specific data
+            city_data = cities_data[self.city]
+            self.nation = city_data["countryCode"]
+            self.lng = city_data["lng"]
+            self.lat = city_data["lat"]
+
+            # Fetch the timezone string
+            if "timezonestr" in city_data:
+                self.tz_str = city_data["timezonestr"]
+            else:
+                # Use country code to infer timezone if not present
+                self.tz_str = country_timezones(self.nation)[0]
+
+            logging.info(f"Data fetched: {city_data}")
+        except FileNotFoundError:
+            raise FileNotFoundError("The 'cities_data.json' file was not found. Please ensure it exists.")
+        except ValueError as e:
+            logging.error(e)
+            raise
+        except Exception as e:
+            logging.error(f"Unexpected error: {e}")
+            raise
+
+
 
     def _initialize_houses(self) -> None:
         """
@@ -702,94 +744,94 @@ class AstrologicalSubject:
         return float_time
 
 
-    @staticmethod
-    def get_from_iso_utc_time(
-        name: str,
-        iso_utc_time: str,
-        city: str = "Greenwich",
-        nation: str = "GB",
-        tz_str: str = "Etc/GMT",
-        online: bool = False,
-        lng: Union[int, float] = 0,
-        lat: Union[int, float] = 51.5074,
-        geonames_username: str = DEFAULT_GEONAMES_USERNAME,
-        zodiac_type: ZodiacType = DEFAULT_ZODIAC_TYPE,
-        disable_chiron_and_lilith: bool = False,
-        sidereal_mode: Union[SiderealMode, None] = None,
-        houses_system_identifier: HousesSystemIdentifier = DEFAULT_HOUSES_SYSTEM_IDENTIFIER,
-        perspective_type: PerspectiveType = DEFAULT_PERSPECTIVE_TYPE
+    # @staticmethod
+    # def get_from_iso_utc_time(
+    #     name: str,
+    #     iso_utc_time: str,
+    #     city: str = "Greenwich",
+    #     nation: str = "GB",
+    #     tz_str: str = "Etc/GMT",
+    #     online: bool = False,
+    #     lng: Union[int, float] = 0,
+    #     lat: Union[int, float] = 51.5074,
+    #     geonames_username: str = DEFAULT_GEONAMES_USERNAME,
+    #     zodiac_type: ZodiacType = DEFAULT_ZODIAC_TYPE,
+    #     disable_chiron_and_lilith: bool = False,
+    #     sidereal_mode: Union[SiderealMode, None] = None,
+    #     houses_system_identifier: HousesSystemIdentifier = DEFAULT_HOUSES_SYSTEM_IDENTIFIER,
+    #     perspective_type: PerspectiveType = DEFAULT_PERSPECTIVE_TYPE
 
-    ) -> "AstrologicalSubject":
-        """
-        Creates an AstrologicalSubject object from an iso formatted UTC time.
-        This method is offline by default, set online=True to fetch the timezone and coordinates from geonames.
+    # ) -> "AstrologicalSubject":
+    #     """
+    #     Creates an AstrologicalSubject object from an iso formatted UTC time.
+    #     This method is offline by default, set online=True to fetch the timezone and coordinates from geonames.
 
-        Args:
-        - name (str): The name of the subject.
-        - iso_utc_time (str): The iso formatted UTC time.
-        - city (str, optional): City or location of birth. Defaults to "Greenwich".
-        - nation (str, optional): Nation of birth. Defaults to "GB".
-        - tz_str (str, optional): Timezone of the birth location. Defaults to "Etc/GMT".
-        - online (bool, optional): Sets if you want to use the online mode, which fetches the timezone and coordinates from geonames.
-            If you already have the coordinates and timezone, set this to False. Defaults to False.
-        - lng (Union[int, float], optional): Longitude of the birth location. Defaults to 0 (Greenwich, London).
-        - lat (Union[int, float], optional): Latitude of the birth location. Defaults to 51.5074 (Greenwich, London).
-        - geonames_username (str, optional): The username for the geonames API. Note: Change this to your own username to avoid rate limits!
-            You can get one for free here: https://www.geonames.org/login
-        - zodiac_type (ZodiacType, optional): The zodiac type to use. Defaults to "Tropic".
-        - disable_chiron_and_lilith: boolean representing if Chiron and Lilith should be disabled. Default is False.
-            Chiron calculation can create some issues with the Swiss Ephemeris when the date is too far in the past.
-        - sidereal_mode (SiderealMode, optional): Also known as Ayanamsa.
-            The mode to use for the sidereal zodiac, according to the Swiss Ephemeris.
-            Defaults to None.
-            Available modes are visible in the SiderealMode Literal.
-        - houses_system_identifier (HousesSystemIdentifier, optional): The system to use for the calculation of the houses.
-            Defaults to "P" (Placidus).
-            Available systems are visible in the HousesSystemIdentifier Literal.
-        - perspective_type (PerspectiveType, optional): The perspective to use for the calculation of the chart.
-            Defaults to "Apparent Geocentric".
+    #     Args:
+    #     - name (str): The name of the subject.
+    #     - iso_utc_time (str): The iso formatted UTC time.
+    #     - city (str, optional): City or location of birth. Defaults to "Greenwich".
+    #     - nation (str, optional): Nation of birth. Defaults to "GB".
+    #     - tz_str (str, optional): Timezone of the birth location. Defaults to "Etc/GMT".
+    #     - online (bool, optional): Sets if you want to use the online mode, which fetches the timezone and coordinates from geonames.
+    #         If you already have the coordinates and timezone, set this to False. Defaults to False.
+    #     - lng (Union[int, float], optional): Longitude of the birth location. Defaults to 0 (Greenwich, London).
+    #     - lat (Union[int, float], optional): Latitude of the birth location. Defaults to 51.5074 (Greenwich, London).
+    #     - geonames_username (str, optional): The username for the geonames API. Note: Change this to your own username to avoid rate limits!
+    #         You can get one for free here: https://www.geonames.org/login
+    #     - zodiac_type (ZodiacType, optional): The zodiac type to use. Defaults to "Tropic".
+    #     - disable_chiron_and_lilith: boolean representing if Chiron and Lilith should be disabled. Default is False.
+    #         Chiron calculation can create some issues with the Swiss Ephemeris when the date is too far in the past.
+    #     - sidereal_mode (SiderealMode, optional): Also known as Ayanamsa.
+    #         The mode to use for the sidereal zodiac, according to the Swiss Ephemeris.
+    #         Defaults to None.
+    #         Available modes are visible in the SiderealMode Literal.
+    #     - houses_system_identifier (HousesSystemIdentifier, optional): The system to use for the calculation of the houses.
+    #         Defaults to "P" (Placidus).
+    #         Available systems are visible in the HousesSystemIdentifier Literal.
+    #     - perspective_type (PerspectiveType, optional): The perspective to use for the calculation of the chart.
+    #         Defaults to "Apparent Geocentric".
 
-        Returns:
-        - AstrologicalSubject: The AstrologicalSubject object.
-        """
-        dt = datetime.fromisoformat(iso_utc_time)
+    #     Returns:
+    #     - AstrologicalSubject: The AstrologicalSubject object.
+    #     """
+    #     dt = datetime.fromisoformat(iso_utc_time)
 
-        if online == True:
-            if geonames_username == DEFAULT_GEONAMES_USERNAME:
-                logging.warning(GEONAMES_DEFAULT_USERNAME_WARNING)
+    #     if online == True:
+    #         if geonames_username == DEFAULT_GEONAMES_USERNAME:
+    #             logging.warning(GEONAMES_DEFAULT_USERNAME_WARNING)
 
-            geonames = FetchGeonames(
-                city,
-                nation,
-                username=geonames_username,
-            )
+    #         geonames = FetchGeonames(
+    #             city,
+    #             nation,
+    #             username=geonames_username,
+    #         )
 
-            city_data: dict[str, str] = geonames.get_serialized_data()
-            lng = float(city_data["lng"])
-            lat = float(city_data["lat"])
+    #         city_data: dict[str, str] = geonames.get_serialized_data()
+    #         lng = float(city_data["lng"])
+    #         lat = float(city_data["lat"])
 
-        subject = AstrologicalSubject(
-            name=name,
-            year=dt.year,
-            month=dt.month,
-            day=dt.day,
-            hour=dt.hour,
-            minute=dt.minute,
-            city=city,
-            nation=city,
-            lng=lng,
-            lat=lat,
-            tz_str=tz_str,
-            online=False,
-            geonames_username=geonames_username,
-            zodiac_type=zodiac_type,
-            sidereal_mode=sidereal_mode,
-            houses_system_identifier=houses_system_identifier,
-            perspective_type=perspective_type,
-            disable_chiron_and_lilith=disable_chiron_and_lilith
-        )
+    #     subject = AstrologicalSubject(
+    #         name=name,
+    #         year=dt.year,
+    #         month=dt.month,
+    #         day=dt.day,
+    #         hour=dt.hour,
+    #         minute=dt.minute,
+    #         city=city,
+    #         nation=city,
+    #         lng=lng,
+    #         lat=lat,
+    #         tz_str=tz_str,
+    #         online=False,
+    #         geonames_username=geonames_username,
+    #         zodiac_type=zodiac_type,
+    #         sidereal_mode=sidereal_mode,
+    #         houses_system_identifier=houses_system_identifier,
+    #         perspective_type=perspective_type,
+    #         disable_chiron_and_lilith=disable_chiron_and_lilith
+    #     )
 
-        return subject
+    #     return subject
 
 if __name__ == "__main__":
     import json
