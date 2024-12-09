@@ -11,6 +11,8 @@ import time
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options
+
 
 from kerykeion.settings.kerykeion_settings import get_settings
 from kerykeion.aspects.synastry_aspects import SynastryAspects
@@ -634,31 +636,64 @@ class KerykeionChartSVG:
         logging.info(f"SVG Generated Correctly in: {chartname}")
         return chartname
 
+    # def capture_svg_screenshot(self, svg_file: Path):
+    #     """Capture a screenshot of the SVG file and save it as PNG"""
+
+    #     options = webdriver.ChromeOptions()
+    #     options.headless = True  # Run in headless mode (no UI)
+        
+    #     # Specify the path to the ChromeDriver executable manually
+    #     chrome_driver_path = r"C:\Program Files (x86)\chromedriver.exe"  # Replace with your ChromeDriver path
+
+    #     # Initialize the driver with the specified path to ChromeDriver
+    #     driver = webdriver.Chrome(service=Service(chrome_driver_path), options=options)
+
+    #     output_png = self.output_directory / f"{self.user.name} - {self.chart_type} Chart.png"
+    #     try:
+    #         # Open the SVG file in the browser
+    #         driver.get(f"file:///{svg_file.resolve()}")  # Open the SVG file
+    #         # Wait for the file to load (you can adjust the wait time if needed)
+    #         time.sleep(0.2)
+    #         # Capture the screenshot and save it as a PNG
+    #         driver.save_screenshot(output_png)
+    #         print(f"Screenshot saved successfully: {output_png}")
+    #     except Exception as e:
+    #         print(f"Error capturing screenshot: {e}")
+    #     finally:
+    #         driver.quit()
+
     def capture_svg_screenshot(self, svg_file: Path):
         """Capture a screenshot of the SVG file and save it as PNG"""
 
-        options = webdriver.ChromeOptions()
-        options.headless = True  # Run in headless mode (no UI)
-        
-        # Specify the path to the ChromeDriver executable manually
+        options = Options()
+        options.add_argument("--headless")  # Run in headless mode
+        options.add_argument("--disable-gpu")  # Disable GPU acceleration
+        options.add_argument("--no-sandbox")  # Required for some environments
+        options.add_argument("--hide-scrollbars")  # Hide scrollbars in the screenshot
+        options.add_argument("--window-size=800,600")  # Set window size to handle SVG scaling
+
         chrome_driver_path = r"C:\Program Files (x86)\chromedriver.exe"  # Replace with your ChromeDriver path
 
-        # Initialize the driver with the specified path to ChromeDriver
+        # Initialize the driver
         driver = webdriver.Chrome(service=Service(chrome_driver_path), options=options)
 
         output_png = self.output_directory / f"{self.user.name} - {self.chart_type} Chart.png"
         try:
             # Open the SVG file in the browser
-            driver.get(f"file:///{svg_file.resolve()}")  # Open the SVG file
-            # Wait for the file to load (you can adjust the wait time if needed)
+            driver.get(f"file:///{svg_file.resolve()}")
+            # Wait briefly to ensure the file is loaded
             time.sleep(0.2)
             # Capture the screenshot and save it as a PNG
-            driver.save_screenshot(output_png)
+            driver.save_screenshot(str(output_png))
             print(f"Screenshot saved successfully: {output_png}")
         except Exception as e:
             print(f"Error capturing screenshot: {e}")
         finally:
             driver.quit()
+
+
+
+
 
 
     def makeWheelOnlyTemplate(self, minify: bool = False):

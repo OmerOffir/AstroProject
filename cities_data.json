@@ -4,6 +4,11 @@
       "lat": 40.7128,
       "lng": -74.0060
     },
+    "Pardes Hanna": {
+        "countryCode": "IL",
+        "lat": 32.4752,
+        "lng": 34.9731
+      },
     "Los Angeles": {
       "countryCode": "US",
       "lat": 34.0522,

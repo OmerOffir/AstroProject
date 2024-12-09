@@ -1,6 +1,7 @@
 import sys; sys.path.append(".")
 from kerykeion.charts.kerykeion_chart_svg import *
 from kerykeion.utilities import setup_logging
+import json
 
 
 
@@ -27,8 +28,12 @@ if __name__ == "__main__":
     birthtime = [int(x.strip()) for x in birthtime]  # Convert to integers
     
     city = input("Enter the city of birth: ")  # e.g., "Liverpool"
-    country = input("Enter the country code (e.g., 'GB' for Great Britain): ")  # e.g., "GB"
-    
+
+    with open("cities_data.json", "r", encoding="utf-8") as f:
+        cities_data = json.load(f)
+    city_data = cities_data[city]
+    nation = city_data["countryCode"]
+
     # Create AstroImageGen instance and generate the chart image
-    astro_gen = AstroImageGen(full_name, birthday, birthtime, city, country)
+    astro_gen = AstroImageGen(full_name, birthday, birthtime, city, city_data)
     astro_gen.image_generator()
